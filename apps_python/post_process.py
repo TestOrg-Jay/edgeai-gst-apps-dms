@@ -28,9 +28,11 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import copy
+
 import cv2
 import numpy as np
-import copy
+
 import debug
 
 np.set_printoptions(threshold=np.inf, linewidth=np.inf)
@@ -94,6 +96,8 @@ class PostProcess:
             return PostProcessSegmentation(flow)
         elif flow.model.task_type == "keypoint_detection":
             return PostProcessKeypointDetection(flow)
+        elif flow.model.task_type == "gaze":
+            return PostProcessGazeDetection(flow)
 
 
 class PostProcessClassification(PostProcess):
@@ -277,8 +281,8 @@ class PostProcessDetection(PostProcess):
         ]
 
         box_color = color
-        luma = ((66*(color[0])+129*(color[1])+25*(color[2])+128)>>8)+16
-        if(luma >= 128):
+        luma = ((66 * (color[0]) + 129 * (color[1]) + 25 * (color[2]) + 128) >> 8) + 16
+        if luma >= 128:
             text_color = (0, 0, 0)
         else:
             text_color = (255, 255, 255)
@@ -371,8 +375,8 @@ class PostProcessSegmentation(PostProcess):
 
         return cv2.merge((r_map, g_map, b_map))
 
-class PostProcessKeypointDetection(PostProcess):
 
+class PostProcessKeypointDetection(PostProcess):
     def __init__(self, flow):
         super().__init__(flow)
 
@@ -467,5 +471,23 @@ class PostProcessKeypointDetection(PostProcess):
                     if conf1 > 0.5 and conf2 > 0.5:
                         cv2.line(img, pos1, pos2, (255, 0, 0), 1)
 
+        return img
+
+
+class PostProcessGazeDetection(PostProcess):
+    def __init__(self, flow):
+        super().__init__(flow)
+
+    def __call__(self, img, results):
+        height = img.shape[0]
+        width = img.shape[1]
+        mid_x = width // 2
+        mid_y = height // 2
+
+        results_norm = results[0] / np.linalg.norm(results[0]) * 100
+        coord1 = (mid_x, mid_y)
+        coord2 = (mid_x + int(results_norm[0][0]), mid_y + int(results_norm[0][1]))
+
+        cv2.arrowedLine(img, coord1, coord2, (0, 0, 255), 2)
 
         return img
